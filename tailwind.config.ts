@@ -8,6 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontWeight: {
+        mid: "500",
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
