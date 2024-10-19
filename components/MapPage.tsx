@@ -128,19 +128,19 @@ const MapPage: React.FC = () => {
   return (
     <div className={`map-page w-full px-20 ${theme === "dark" ? "dark" : ""}`}>
       <div className="flex flex-row gap-4 justify-between items-center w-full ">
-        <p className="text-md col-span-4 font-italic min-w-96">
+        <p className="text-lg col-span-4 font-italic min-w-96">
           Create a learning map for a new skill in{" "}
           <span className="font-semibold">seconds.</span>{" "}
         </p>
-        <div className="skill-input flex flex-row gap-4 w-full items-center justify-center min-w-96 ">
+        <div className="skill-input flex flex-row gap-4  items-center justify-center min-w-96 ">
           <div className="relative w-96">
             <input
               type="text"
               value={skill}
               onChange={(e) => setSkill(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="ex. 'Python, JavaScript, React'"
-              className="py-2 px-8 pr-12 rounded-md w-full bg-secondary text-foreground dark:text-background focus:outline-none text-md"
+              placeholder="ex. 'Cooking, Machine Learning, React JS'"
+              className="py-4 px-8 pr-12 rounded-full w-full bg-secondary text-foreground dark:text-background focus:outline-none text-sm"
             />
             <MdKeyboardReturn
               className="absolute right-3 top-1/2 transform -translate-y-1/2 dark:text-background text-foreground opacity-50"
