@@ -1,15 +1,28 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ElementData } from "@/types/general";
+import { FaTimes } from "react-icons/fa";
 
-const Element: React.FC<{
+interface ElementProps {
   data: ElementData;
   onMove: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
   GRID_SIZE: number;
   containerRef: React.RefObject<HTMLDivElement>;
-}> = ({ data, onMove, onTextChange, GRID_SIZE, containerRef }) => {
-  const [isDragging, setIsDragging] = useState(false);
+  onDelete: (id: string) => void;
+}
+
+const Element: React.FC<ElementProps> = ({
+  data,
+  onMove,
+  onTextChange,
+  GRID_SIZE,
+  containerRef,
+  onDelete,
+}) => {
   const [position, setPosition] = useState({ x: data.x, y: data.y });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [text, setText] = useState(data.text);
   const elementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,26 +73,61 @@ const Element: React.FC<{
     setIsDragging(true);
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+  };
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    onTextChange(data.id, text);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      setIsEditing(false);
+      onTextChange(data.id, text);
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(data.id);
+  };
+
   return (
     <div
       ref={elementRef}
-      className="absolute p-2 rounded shadow-md cursor-move"
+      className="absolute p-2 rounded shadow-md cursor-move bg-white dark:bg-gray-800 text-black dark:text-white group"
       style={{
         left: position.x,
         top: position.y,
         minWidth: "100px",
         minHeight: "40px",
-        backgroundColor: "#01161e",
-        color: "#eff6e0",
       }}
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
     >
-      <input
-        type="text"
-        value={data.text}
-        onChange={(e) => onTextChange(data.id, e.target.value)}
-        className="w-full bg-transparent outline-none text-inherit"
-      />
+      <button
+        onClick={handleDelete}
+        className="absolute top-0 right-0 p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="Delete element"
+      >
+        <FaTimes size={12} />
+      </button>
+      {isEditing ? (
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          className="w-full bg-transparent outline-none"
+          autoFocus
+        />
+      ) : (
+        <div>{text}</div>
+      )}
     </div>
   );
 };

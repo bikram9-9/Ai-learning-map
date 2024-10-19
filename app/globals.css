@@ -5,8 +5,9 @@
 :root {
   --background: #eff6e0;
   --foreground: #01161e;
-  --accent: ##124559;
-  --secondary: ##aec3b0;
+  --accent: #124559;
+  --secondary: #aec3b0;
+  --dot-color: rgba(1, 22, 30, 0.2); /* Darker color for light mode */
 }
 
 .dark {
@@ -14,6 +15,7 @@
   --foreground: #eff6e0;
   --accent: #124559;
   --secondary: #aec3b0;
+  --dot-color: rgba(239, 246, 224, 0.2); /* Lighter color for dark mode */
 }
 
 body {
@@ -37,13 +39,10 @@ body {
 }
 
 .dot-pattern {
-  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-image: radial-gradient(
+    circle,
+    var(--dot-color) 1.2px,
+    transparent 0.4px
+  );
   background-size: 40px 40px;
-  opacity: 1;
-}
-
-.dark .dot-pattern {
-  background-image: radial-gradient(circle, #4b5563 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 1;
 }

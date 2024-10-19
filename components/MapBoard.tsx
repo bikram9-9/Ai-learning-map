@@ -7,13 +7,14 @@ import {
   ElementData,
 } from "@/types/general";
 import Element from "./Element";
+import { FaPlus } from "react-icons/fa";
 
 interface MapBoardProps {
   skill: string;
   generateMap: boolean;
 }
 
-const GRID_SIZE = 20;
+const GRID_SIZE = 40;
 
 const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -44,6 +45,9 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
 
       if (response.data) {
         setLearningMap(response.data);
+        // Convert learning map data to elements
+        const newElements = convertLearningMapToElements(response.data);
+        setElements(newElements);
       } else {
         throw new Error("Invalid response structure");
       }
@@ -56,6 +60,26 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const convertLearningMapToElements = (map: LearningMap): ElementData[] => {
+    // Adjust this function based on your LearningMap structure
+    return map.layers.flatMap((layer) =>
+      layer.skills.map((skill, index) => ({
+        id: skill.skill || `element-${index}`,
+        x:
+          Math.round(
+            (Math.random() * ((mapRef.current?.clientWidth || 500) - 100)) /
+              GRID_SIZE
+          ) * GRID_SIZE,
+        y:
+          Math.round(
+            (Math.random() * ((mapRef.current?.clientHeight || 500) - 40)) /
+              GRID_SIZE
+          ) * GRID_SIZE,
+        text: skill.skill || `Skill ${index + 1}`,
+      }))
+    );
   };
 
   useEffect(() => {
@@ -98,6 +122,10 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     );
   };
 
+  const deleteElement = (id: string) => {
+    setElements((prevElements) => prevElements.filter((el) => el.id !== id));
+  };
+
   return (
     <div className="map-board w-full h-[calc(100vh-200px)] mt-10 rounded-lg relative">
       <div className="absolute inset-0 dot-pattern dark:dot-pattern"></div>
@@ -120,6 +148,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
             data={element}
             onMove={updateElementPosition}
             onTextChange={updateElementText}
+            onDelete={deleteElement}
             GRID_SIZE={GRID_SIZE}
             containerRef={mapRef}
           />
@@ -127,9 +156,10 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
       </div>
       <button
         onClick={createNewElement}
-        className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer"
+        className="absolute top-2 left-2 bg-accent w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 "
+        aria-label="Add Element"
       >
-        Add Element
+        <FaPlus className="w-4 h-4 " />
       </button>
     </div>
   );
