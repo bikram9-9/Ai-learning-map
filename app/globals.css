@@ -9,13 +9,11 @@
   --secondary: ##aec3b0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #01161e;
-    --foreground: #eff6e0;
-    --accent: ##124559;
-    --secondary: ##aec3b0;
-  }
+.dark {
+  --background: #01161e;
+  --foreground: #eff6e0;
+  --accent: #124559;
+  --secondary: #aec3b0;
 }
 
 body {

@@ -8,13 +8,14 @@ import {
   LearningMap,
   LearningNode,
 } from "@/types/request";
+import { useTheme } from "@/providers/ThemeProvider";
 
 const MapPage: React.FC = () => {
   const [skill, setSkill] = useState<string>("");
   const [learningMap, setLearningMap] = useState<LearningMap | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const { theme, toggleTheme } = useTheme();
 
   const generateLearningMap = async (inputSkill: string = skill) => {
     if (!inputSkill.trim()) return;
@@ -98,7 +99,7 @@ const MapPage: React.FC = () => {
           line.setAttribute("y1", y1.toString());
           line.setAttribute("x2", x2.toString());
           line.setAttribute("y2", y2.toString());
-          line.setAttribute("stroke", isDarkMode ? "#888" : "#ddd");
+          line.setAttribute("stroke", theme === "dark" ? "#888" : "#ddd");
           line.setAttribute("stroke-width", "1");
           svg.appendChild(line);
         });
@@ -124,15 +125,8 @@ const MapPage: React.FC = () => {
     );
   };
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    // You might want to add logic here to apply dark mode to your entire app
-    // For example, adding/removing a class to the body element
-    document.body.classList.toggle("dark-mode");
-  };
-
   return (
-    <div className={`map-page w-full px-20 ${isDarkMode ? "dark" : ""}`}>
+    <div className={`map-page w-full px-20 ${theme === "dark" ? "dark" : ""}`}>
       <div className="flex flex-row gap-4 justify-between items-center w-full ">
         <p className="text-md col-span-4 font-italic min-w-96">
           Create a learning map for a new skill in{" "}
@@ -164,10 +158,10 @@ const MapPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={toggleDarkMode}
+              onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
             >
-              {isDarkMode ? (
+              {theme === "dark" ? (
                 <FaSun className="text-yellow-400" />
               ) : (
                 <FaMoon className="text-gray-600" />
