@@ -16,4 +16,11 @@ export type LearningMapRequest = {
   layers: number;
 };
 
+export type ElementData = {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+};
+
 export type LearningMapResponse = LearningMap;

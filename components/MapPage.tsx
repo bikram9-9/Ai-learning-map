@@ -3,7 +3,7 @@ import { MdKeyboardReturn } from "react-icons/md";
 import { FaSun, FaMoon } from "react-icons/fa";
 
 import { useTheme } from "@/providers/ThemeProvider";
-import MapBoard from "./Mapboard";
+import MapBoard from "./MapBoard";
 
 const MapPage: React.FC = () => {
   const [skill, setSkill] = useState<string>("");
@@ -31,7 +31,7 @@ const MapPage: React.FC = () => {
               onChange={(e) => setSkill(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="ex. 'Cooking, Machine Learning, React JS'"
-              className="py-4 px-8 pr-12 rounded-full w-full bg-secondary text-foreground dark:text-background focus:outline-none text-sm"
+              className="py-4 px-8 pr-12 rounded-lg w-full bg-secondary text-foreground dark:text-background focus:outline-none text-sm"
             />
             <MdKeyboardReturn
               className="absolute right-3 top-1/2 transform -translate-y-1/2 dark:text-background text-foreground opacity-50"
@@ -50,7 +50,7 @@ const MapPage: React.FC = () => {
         <div className="flex items-center gap-2 justify-end">
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
           >
             {theme === "dark" ? (
               <FaSun className="text-yellow-400" />
