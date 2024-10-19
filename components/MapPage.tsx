@@ -140,10 +140,10 @@ const MapPage: React.FC = () => {
               onChange={(e) => setSkill(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="ex. 'Python, JavaScript, React'"
-              className="py-2 px-8 pr-12 rounded-md w-full bg-secondary text-background focus:outline-none text-sm font-mid "
+              className="py-2 px-8 pr-12 rounded-md w-full bg-secondary text-foreground dark:text-background focus:outline-none text-md"
             />
             <MdKeyboardReturn
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-background opacity-50"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 dark:text-background text-foreground opacity-50"
               size={20}
             />
           </div>
@@ -156,18 +156,18 @@ const MapPage: React.FC = () => {
               {isLoading ? "Generating..." : "Generate"}
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            >
-              {theme === "dark" ? (
-                <FaSun className="text-yellow-400" />
-              ) : (
-                <FaMoon className="text-gray-600" />
-              )}
-            </button>
-          </div>
+        </div>
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+          >
+            {theme === "dark" ? (
+              <FaSun className="text-yellow-400" />
+            ) : (
+              <FaMoon className="text-gray-600" />
+            )}
+          </button>
         </div>
       </div>
       {error && (
