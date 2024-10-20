@@ -5,9 +5,11 @@ import {
   LearningMapRequest,
   LearningMap,
   ElementData,
+  Connection,
 } from "@/types/general";
 import Element from "./Element";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaTrash } from "react-icons/fa";
+import ConfirmationModal from "./ConfirmationModal";
 
 interface MapBoardProps {
   skill: string;
@@ -22,6 +24,8 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [learningMap, setLearningMap] = useState<LearningMap | null>(null);
   const [elements, setElements] = useState<ElementData[]>([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [connections, setConnections] = useState<Connection[]>([]);
 
   useEffect(() => {
     if (generateMap) {
@@ -68,31 +72,56 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     const boardHeight = mapRef.current?.clientHeight || 800;
     const layerHeight = boardHeight / totalLayers;
 
-    return map.layers.flatMap((layer, layerIndex) => {
+    const newConnections: Connection[] = [];
+    const newElements = map.layers.flatMap((layer, layerIndex) => {
       const skillsInLayer = layer.skills.length;
-      return layer.skills.map((skill, skillIndex) => ({
-        id: `${layerIndex}-${skillIndex}`,
-        x:
-          Math.round(
-            ((boardWidth / (skillsInLayer + 1)) * (skillIndex + 1)) / GRID_SIZE
-          ) * GRID_SIZE,
-        y:
-          Math.round((layerHeight * (layerIndex + 0.5)) / GRID_SIZE) *
-          GRID_SIZE,
-        text: skill,
-        layer: layerIndex,
-      }));
+      return layer.skills.map((skill, skillIndex) => {
+        const id = `${layerIndex}-${skillIndex}`;
+        if (layerIndex < map.layers.length - 1) {
+          map.layers[layerIndex + 1].skills.forEach((_, nextSkillIndex) => {
+            newConnections.push({
+              from: id,
+              to: `${layerIndex + 1}-${nextSkillIndex}`,
+            });
+          });
+        }
+        return {
+          id,
+          x:
+            Math.round(
+              ((boardWidth / (skillsInLayer + 1)) * (skillIndex + 1)) /
+                GRID_SIZE
+            ) * GRID_SIZE,
+          y:
+            Math.round((layerHeight * (layerIndex + 0.5)) / GRID_SIZE) *
+            GRID_SIZE,
+          text: skill,
+          layer: layerIndex,
+        };
+      });
     });
+
+    setConnections(newConnections);
+    return newElements;
   };
 
   useEffect(() => {
     if (learningMap && mapRef.current) {
       drawConnections();
     }
-  }, [learningMap]);
+  }, [learningMap, elements, connections]);
 
   const drawConnections = () => {
-    if (!mapRef.current || !learningMap) return;
+    if (!mapRef.current) return;
+
+    // Remove existing SVG
+    const existingSvg = mapRef.current.querySelector("svg");
+    if (existingSvg) {
+      existingSvg.remove();
+    }
+
+    // Only create new SVG if there are connections to draw
+    if (connections.length === 0) return;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("width", "100%");
@@ -103,24 +132,23 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     svg.style.pointerEvents = "none";
     mapRef.current.appendChild(svg);
 
-    elements.forEach((element) => {
-      const nextLayerElements = elements.filter(
-        (e) => e.layer === (element.layer || 0) + 1
-      );
+    connections.forEach((connection) => {
+      const fromElement = elements.find((e) => e.id === connection.from);
+      const toElement = elements.find((e) => e.id === connection.to);
 
-      nextLayerElements.forEach((nextElement) => {
+      if (fromElement && toElement) {
         const line = document.createElementNS(
           "http://www.w3.org/2000/svg",
           "line"
         );
-        line.setAttribute("x1", (element.x + 50).toString());
-        line.setAttribute("y1", (element.y + 20).toString());
-        line.setAttribute("x2", (nextElement.x + 50).toString());
-        line.setAttribute("y2", (nextElement.y + 20).toString());
+        line.setAttribute("x1", (fromElement.x + 50).toString());
+        line.setAttribute("y1", (fromElement.y + 20).toString());
+        line.setAttribute("x2", (toElement.x + 50).toString());
+        line.setAttribute("y2", (toElement.y + 20).toString());
         line.setAttribute("stroke", "rgba(156, 163, 175, 0.5)");
         line.setAttribute("stroke-width", "2");
         svg.appendChild(line);
-      });
+      }
     });
   };
 
@@ -156,6 +184,11 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
 
   const deleteElement = (id: string) => {
     setElements((prevElements) => prevElements.filter((el) => el.id !== id));
+    setConnections((prevConnections) =>
+      prevConnections.filter((conn) => conn.from !== id && conn.to !== id)
+    );
+    // Schedule a redraw of connections after the state updates
+    setTimeout(() => drawConnections(), 0);
   };
 
   useEffect(() => {
@@ -163,6 +196,33 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
       drawConnections();
     }
   }, [elements]);
+
+  const clearBoard = () => {
+    setLearningMap(null);
+    setElements([]);
+    setConnections([]);
+
+    // Remove existing SVG
+    if (mapRef.current) {
+      const existingSvg = mapRef.current.querySelector("svg");
+      if (existingSvg) {
+        existingSvg.remove();
+      }
+    }
+  };
+
+  const handleClearClick = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmClear = () => {
+    clearBoard();
+    setShowConfirmModal(false);
+  };
+
+  const handleCancelClear = () => {
+    setShowConfirmModal(false);
+  };
 
   return (
     <div className="map-board w-full h-[calc(100vh-200px)] mt-10 rounded-lg relative">
@@ -194,11 +254,25 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
       </div>
       <button
         onClick={createNewElement}
-        className="absolute top-2 left-2 bg-accent w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20 "
+        className="absolute top-2 left-2 bg-accent w-20 h-20 rounded-full flex items-center justify-center cursor-pointer z-20"
         aria-label="Add Element"
       >
-        <FaPlus className="w-4 h-4 " />
+        <FaPlus className="w-4 h-4" />
       </button>
+      <button
+        onClick={handleClearClick}
+        className="absolute bottom-4 left-4 bg-red-500 w-12 h-12 rounded-full flex items-center justify-center cursor-pointer z-20"
+        aria-label="Clear Board"
+      >
+        <FaTrash className="w-4h-4" />
+      </button>
+      {showConfirmModal && (
+        <ConfirmationModal
+          message="Are you sure you want to clear the board?"
+          onConfirm={handleConfirmClear}
+          onCancel={handleCancelClear}
+        />
+      )}
     </div>
   );
 };

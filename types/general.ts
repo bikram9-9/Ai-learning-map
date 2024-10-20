@@ -20,3 +20,8 @@ export type ElementData = {
 };
 
 export type LearningMapResponse = LearningMap;
+
+export interface Connection {
+  from: string;
+  to: string;
+}
