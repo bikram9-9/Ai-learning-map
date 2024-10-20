@@ -49,6 +49,10 @@ const Element: React.FC<ElementProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [showPlusIcons, setShowPlusIcons] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
+  const [isHovering, setIsHovering] = useState(false);
+  const [elementWidth, setElementWidth] = useState(GRID_SIZE * 4);
+  const [elementHeight, setElementHeight] = useState(GRID_SIZE * 1.2);
+  const textRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -143,6 +147,17 @@ const Element: React.FC<ElementProps> = ({
     return () => document.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
+  useEffect(() => {
+    if (textRef.current) {
+      const textWidth = textRef.current.scrollWidth;
+      const textHeight = textRef.current.scrollHeight;
+      const newWidth = Math.max(GRID_SIZE * 4, textWidth + 20); // Add some padding
+      const newHeight = Math.max(GRID_SIZE * 1.2, textHeight + 10); // Add some padding
+      setElementWidth(newWidth);
+      setElementHeight(newHeight);
+    }
+  }, [data.text, GRID_SIZE]);
+
   const elementClasses = data.isStartElement
     ? "bg-accent text-background dark:text-foreground dark:bg-gray-800"
     : "bg-foreground text-background dark:text-foreground dark:bg-gray-800";
@@ -156,12 +171,14 @@ const Element: React.FC<ElementProps> = ({
       style={{
         left: data.x,
         top: data.y,
-        width: GRID_SIZE * 4,
-        height: GRID_SIZE * 1.2,
+        width: elementWidth,
+        height: elementHeight,
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
       onClick={handleClick}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
     >
       {isEditing ? (
         <input
@@ -175,7 +192,9 @@ const Element: React.FC<ElementProps> = ({
           autoFocus
         />
       ) : (
-        <div className="p-2">{data.text}</div>
+        <div ref={textRef} className="p-2 overflow-hidden text-ellipsis">
+          {data.text}
+        </div>
       )}
       {showPlusIcons && !isConnecting && !isConnectionStart && (
         <>
@@ -200,7 +219,7 @@ const Element: React.FC<ElementProps> = ({
       {isConnectionStart && (
         <div className="absolute inset-0 bg-accent opacity-20 rounded pointer-events-none"></div>
       )}
-      {data.skills && data.skills.length > 0 && (
+      {isHovering && data.skills && data.skills.length > 0 && (
         <div
           className={`absolute top-full left-0 w-full shadow-md rounded-b p-2 z-10 ${elementClasses}`}
         >
