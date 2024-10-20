@@ -8,7 +8,7 @@ import {
   ElementData,
 } from "@/types/general.types";
 import Element from "./Element";
-import { FaPlus, FaTrash, FaArrowRight } from "react-icons/fa";
+import { FaPlus, FaTrash } from "react-icons/fa";
 import ConfirmationModal from "./ConfirmationModal";
 
 interface MapBoardProps {
@@ -298,6 +298,69 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     [isCreatingConnection, findClosestElement, completeNewConnection]
   );
 
+  const getConnectionPoints = (
+    element: ElementData
+  ): {
+    left: { x: number; y: number };
+    right: { x: number; y: number };
+    top: { x: number; y: number };
+    bottom: { x: number; y: number };
+    center: { x: number; y: number };
+  } => {
+    const elementWidth = GRID_SIZE * 4;
+    const elementHeight = GRID_SIZE * 1.2;
+    return {
+      left: { x: element.x, y: element.y + elementHeight / 2 },
+      right: { x: element.x + elementWidth, y: element.y + elementHeight / 2 },
+      top: { x: element.x + elementWidth / 2, y: element.y },
+      bottom: { x: element.x + elementWidth / 2, y: element.y + elementHeight },
+      center: {
+        x: element.x + elementWidth / 2,
+        y: element.y + elementHeight / 2,
+      },
+    };
+  };
+
+  const getClosestConnectionPoint = (from: ElementData, to: ElementData) => {
+    const fromPoints = getConnectionPoints(from);
+    const toPoints = getConnectionPoints(to);
+
+    let minDistance = Infinity;
+    let closestFromPoint = fromPoints.center;
+    let closestToPoint = toPoints.center;
+
+    Object.entries(fromPoints).forEach(([fromKey, fromPoint]) => {
+      Object.entries(toPoints).forEach(([toKey, toPoint]) => {
+        // Exclude center-to-center connections
+        if (fromKey === "center" && toKey === "center") return;
+
+        const distance = Math.sqrt(
+          Math.pow(fromPoint.x - toPoint.x, 2) +
+            Math.pow(fromPoint.y - toPoint.y, 2)
+        );
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestFromPoint = fromPoint;
+          closestToPoint = toPoint;
+        }
+      });
+    });
+
+    return { from: closestFromPoint, to: closestToPoint };
+  };
+
+  const createCurvedPath = (
+    start: { x: number; y: number },
+    end: { x: number; y: number }
+  ) => {
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
+    const controlX = midX;
+    const controlY = midY - Math.min(100, Math.abs(end.y - start.y) / 2);
+
+    return `M ${start.x} ${start.y} Q ${controlX} ${controlY} ${end.x} ${end.y}`;
+  };
+
   useEffect(() => {
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("keydown", handleKeyDown);
@@ -335,34 +398,24 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
           const toElement = elements.find((el) => el.id === conn.to);
           if (!fromElement || !toElement) return null;
 
+          const { from, to } = getClosestConnectionPoint(
+            fromElement,
+            toElement
+          );
+          const pathD = createCurvedPath(from, to);
+
           return (
             <svg
               key={conn.id}
               className="absolute z-0"
-              style={{
-                left: 0,
-                top: 0,
-                width: "100%",
-                height: "100%",
-              }}
+              style={{ left: 0, top: 0, width: "100%", height: "100%" }}
             >
-              <line
-                x1={fromElement.x}
-                y1={fromElement.y}
-                x2={toElement.x}
-                y2={toElement.y}
+              <path
+                d={pathD}
+                fill="none"
                 stroke="#888"
                 strokeWidth="2"
                 className="cursor-pointer"
-                onClick={() => deleteConnection(conn.id)}
-              />
-              <FaArrowRight
-                className="text-gray-500 cursor-pointer"
-                style={{
-                  position: "absolute",
-                  left: toElement.x - 16,
-                  top: toElement.y - 8,
-                }}
                 onClick={() => deleteConnection(conn.id)}
               />
             </svg>
@@ -373,19 +426,15 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
             className="absolute z-0"
             style={{ left: 0, top: 0, width: "100%", height: "100%" }}
           >
-            <line
-              x1={
-                elements.find((el) => el.id === newConnection.from)?.x ||
-                startElement?.x ||
-                0
-              }
-              y1={
-                elements.find((el) => el.id === newConnection.from)?.y ||
-                startElement?.y ||
-                0
-              }
-              x2={tempConnection.x}
-              y2={tempConnection.y}
+            <path
+              d={createCurvedPath(
+                getConnectionPoints(
+                  elements.find((el) => el.id === newConnection.from) ||
+                    startElement!
+                ).center,
+                tempConnection
+              )}
+              fill="none"
               stroke="#888"
               strokeWidth="2"
               strokeDasharray="5,5"
