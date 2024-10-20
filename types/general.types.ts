@@ -5,7 +5,7 @@ export type Phase = {
 };
 
 export type Duration = {
-  approx_time: number;
+  approx_time: string;
   start_time: string;
   mastery_time: string;
 };

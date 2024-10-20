@@ -1,6 +1,7 @@
-import React, { useState, useRef } from "react";
-import { ElementData, Duration } from "@/types/general";
+import React, { useState, useRef, useEffect } from "react";
+import { ElementData, Duration } from "@/types/general.types";
 import { FaPlus } from "react-icons/fa";
+import Link from "next/link";
 
 interface ElementProps {
   data: ElementData & { isStartElement?: boolean };
@@ -9,26 +10,45 @@ interface ElementProps {
   onDelete: (id: string) => void;
   GRID_SIZE: number;
   containerRef: React.RefObject<HTMLDivElement>;
-  onStartConnection: () => void;
-  onCompleteConnection: () => void;
+  onStartConnection: (id: string) => void;
+  onCompleteConnection: () => boolean;
   isConnecting: boolean;
+  isConnectionStart: boolean;
 }
+
+const PlusIcon: React.FC<{ position: string; onClick: () => void }> = ({
+  position,
+  onClick,
+}) => {
+  return (
+    <button
+      className={`absolute bg-accent rounded-full p-1 ${position}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      <FaPlus className="w-3 h-3" />
+    </button>
+  );
+};
 
 const Element: React.FC<ElementProps> = ({
   data,
   onMove,
   onTextChange,
-  onDelete,
   GRID_SIZE,
   containerRef,
   onStartConnection,
   onCompleteConnection,
   isConnecting,
+  isConnectionStart,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(data.text);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
+  const [showPlusIcons, setShowPlusIcons] = useState(false);
+  const elementRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -84,16 +104,54 @@ const Element: React.FC<ElementProps> = ({
     }
   };
 
-  const formatDuration = (duration: Duration) => {
-    return `${duration.approx_time} weeks`;
+  const formatDuration = (duration: Duration | undefined): string => {
+    if (!duration) return "Duration unknown";
+    if (duration.approx_time) {
+      return `${duration.approx_time} weeks`;
+    }
+    if (duration.start_time && duration.mastery_time) {
+      const start = parseInt(duration.start_time);
+      const mastery = parseInt(duration.mastery_time);
+      if (!isNaN(start) && !isNaN(mastery)) {
+        return `${mastery - start} weeks`;
+      }
+    }
+    return "Duration format unknown";
   };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isConnecting) {
+      e.stopPropagation();
+      onCompleteConnection();
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (elementRef.current) {
+        const rect = elementRef.current.getBoundingClientRect();
+        const isNear =
+          e.clientX >= rect.left - 32 &&
+          e.clientX <= rect.right + 32 &&
+          e.clientY >= rect.top - 32 &&
+          e.clientY <= rect.bottom + 32;
+        setShowPlusIcons(isNear);
+      }
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    return () => document.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  const elementClasses = data.isStartElement
+    ? "bg-accent text-background dark:text-foreground dark:bg-gray-800"
+    : "bg-foreground text-background dark:text-foreground dark:bg-gray-800";
 
   return (
     <div
-      className={`absolute p-2 rounded shadow-md cursor-move flex flex-col justify-between text-sm font-italic ${
-        data.isStartElement
-          ? "bg-accent text-background dark:text-foreground dark:bg-gray-800"
-          : "bg-foreground text-background dark:text-foreground dark:bg-gray-800"
+      ref={elementRef}
+      className={`absolute p-2 rounded shadow-md cursor-move flex flex-col justify-between text-sm font-italic ${elementClasses} ${
+        isConnectionStart ? "ring-2 ring-accent" : ""
       }`}
       style={{
         left: data.x,
@@ -103,13 +161,7 @@ const Element: React.FC<ElementProps> = ({
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={() => {
-        if (isConnecting) {
-          onCompleteConnection();
-        }
-      }}
+      onClick={handleClick}
     >
       {isEditing ? (
         <input
@@ -123,28 +175,43 @@ const Element: React.FC<ElementProps> = ({
           autoFocus
         />
       ) : (
+        <div className="p-2">{data.text}</div>
+      )}
+      {showPlusIcons && !isConnecting && !isConnectionStart && (
         <>
-          <div className="p-2">{data.text}</div>
-          <div className="flex justify-between items-center text-gray-500">
-            {data.duration && <span>{formatDuration(data.duration)}</span>}
-            {data.skills && <span>Skills: {data.skills.join(", ")}</span>}
-          </div>
+          <PlusIcon
+            position="left-0 top-1/2 -translate-x-full -translate-y-1/2"
+            onClick={() => onStartConnection(data.id)}
+          />
+          <PlusIcon
+            position="right-0 top-1/2 translate-x-full -translate-y-1/2"
+            onClick={() => onStartConnection(data.id)}
+          />
+          <PlusIcon
+            position="top-0 left-1/2 -translate-x-1/2 -translate-y-full"
+            onClick={() => onStartConnection(data.id)}
+          />
+          <PlusIcon
+            position="bottom-0 left-1/2 -translate-x-1/2 translate-y-full"
+            onClick={() => onStartConnection(data.id)}
+          />
         </>
       )}
-      <button
-        onClick={() => onDelete(data.id)}
-        className="absolute top-0 right-0 p-1"
-      ></button>
-      {isHovered && !isConnecting && (
-        <button
-          className="absolute -right-4 top-1/2 transform -translate-y-1/2 bg-accent rounded-full p-1"
-          onClick={(e) => {
-            e.stopPropagation();
-            onStartConnection();
-          }}
+      {isConnectionStart && (
+        <div className="absolute inset-0 bg-accent opacity-20 rounded pointer-events-none"></div>
+      )}
+      {data.skills && data.skills.length > 0 && (
+        <div
+          className={`absolute top-full left-0 w-full shadow-md rounded-b p-2 z-10 ${elementClasses}`}
         >
-          <FaPlus className="w-3 h-3" />
-        </button>
+          {data.skills.map((skill, index) => (
+            <Link href={`/skill?name=${encodeURIComponent(skill)}`} key={index}>
+              <span className="block underline cursor-pointer hover:text-accent">
+                {skill}: {formatDuration(data.duration)}
+              </span>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );

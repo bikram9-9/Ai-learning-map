@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 import {
   LearningPathsResponse,
@@ -6,7 +6,7 @@ import {
   LearningPath,
   Phase,
   ElementData,
-} from "@/types/general";
+} from "@/types/general.types";
 import Element from "./Element";
 import { FaPlus, FaTrash, FaArrowRight } from "react-icons/fa";
 import ConfirmationModal from "./ConfirmationModal";
@@ -34,6 +34,11 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     to: string | null;
   }>({ from: "", to: null });
   const [startElement, setStartElement] = useState<ElementData | null>(null);
+  const [isCreatingConnection, setIsCreatingConnection] = useState(false);
+  const [tempConnection, setTempConnection] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     if (generateMap) {
@@ -174,27 +179,133 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
 
   const startNewConnection = (fromId: string) => {
     setNewConnection({ from: fromId, to: null });
-  };
-
-  const completeNewConnection = (toId: string) => {
-    if (newConnection.from && newConnection.from !== toId) {
-      const newConn = {
-        from: newConnection.from,
-        to: toId,
-        id: `conn-${Date.now()}`,
-      };
-      setConnections([...connections, newConn]);
-      setNewConnection({ from: "", to: null });
+    setIsCreatingConnection(true);
+    const fromElement = elements.find((el) => el.id === fromId) || startElement;
+    if (fromElement) {
+      setTempConnection({ x: fromElement.x, y: fromElement.y });
     }
   };
+
+  const completeNewConnection = useCallback(
+    (toId: string | null): boolean => {
+      if (newConnection.from && newConnection.from !== toId) {
+        if (toId) {
+          const newConn = {
+            from: newConnection.from,
+            to: toId,
+            id: `conn-${Date.now()}`,
+          };
+          setConnections((prevConnections) => [...prevConnections, newConn]);
+        }
+        setNewConnection({ from: "", to: null });
+        setIsCreatingConnection(false);
+        setTempConnection(null);
+        return true;
+      }
+      return false;
+    },
+    [newConnection]
+  );
+
+  const findClosestElement = useCallback(
+    (position: { x: number; y: number }): ElementData | null => {
+      const threshold = GRID_SIZE; // Adjust this value as needed
+      let closestElement: ElementData | null = null;
+      let minDistance = Infinity;
+
+      [...elements, startElement].forEach((element) => {
+        if (element) {
+          const distance = Math.sqrt(
+            Math.pow(element.x - position.x, 2) +
+              Math.pow(element.y - position.y, 2)
+          );
+          if (distance < minDistance && distance < threshold) {
+            minDistance = distance;
+            closestElement = element;
+          }
+        }
+      });
+
+      return closestElement;
+    },
+    [elements, startElement]
+  );
 
   const deleteConnection = (id: string) => {
     setConnections(connections.filter((conn) => conn.id !== id));
   };
 
   const handleStartElementMove = (id: string, x: number, y: number) => {
-    setStartElement((prev) => (prev ? { ...prev, x, y } : null));
+    setStartElement((prev: ElementData | null) =>
+      prev ? { ...prev, x, y } : null
+    );
   };
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isCreatingConnection) {
+        const rect = mapRef.current?.getBoundingClientRect();
+        if (rect) {
+          setTempConnection({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        }
+      }
+    },
+    [isCreatingConnection]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (isCreatingConnection && e.key === "Enter") {
+        const closestElement = findClosestElement(
+          tempConnection || { x: 0, y: 0 }
+        );
+        if (closestElement) {
+          completeNewConnection(closestElement.id);
+        }
+        setIsCreatingConnection(false);
+        setTempConnection(null);
+      }
+    },
+    [
+      isCreatingConnection,
+      tempConnection,
+      findClosestElement,
+      completeNewConnection,
+    ]
+  );
+
+  const handleMapClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isCreatingConnection) {
+        const rect = mapRef.current?.getBoundingClientRect();
+        if (rect) {
+          const clickPosition = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          };
+          const closestElement = findClosestElement(clickPosition);
+          if (closestElement) {
+            completeNewConnection(closestElement.id);
+          } else {
+            completeNewConnection(null);
+          }
+        }
+      }
+    },
+    [isCreatingConnection, findClosestElement, completeNewConnection]
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleMouseMove, handleKeyDown]);
 
   return (
     <div className="map-board w-full h-[calc(100vh-200px)] mt-10 rounded-lg relative">
@@ -213,67 +324,103 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
           </div>
         </div>
       )}
-      <div ref={mapRef} className="relative z-10 w-full h-full">
-        {connections.map((conn) => (
+      <div
+        ref={mapRef}
+        className="relative z-10 w-full h-full"
+        onClick={handleMapClick}
+      >
+        {connections.map((conn) => {
+          const fromElement =
+            elements.find((el) => el.id === conn.from) || startElement;
+          const toElement = elements.find((el) => el.id === conn.to);
+          if (!fromElement || !toElement) return null;
+
+          return (
+            <svg
+              key={conn.id}
+              className="absolute z-0"
+              style={{
+                left: 0,
+                top: 0,
+                width: "100%",
+                height: "100%",
+              }}
+            >
+              <line
+                x1={fromElement.x}
+                y1={fromElement.y}
+                x2={toElement.x}
+                y2={toElement.y}
+                stroke="#888"
+                strokeWidth="2"
+                className="cursor-pointer"
+                onClick={() => deleteConnection(conn.id)}
+              />
+              <FaArrowRight
+                className="text-gray-500 cursor-pointer"
+                style={{
+                  position: "absolute",
+                  left: toElement.x - 16,
+                  top: toElement.y - 8,
+                }}
+                onClick={() => deleteConnection(conn.id)}
+              />
+            </svg>
+          );
+        })}
+        {isCreatingConnection && newConnection.from && tempConnection && (
           <svg
-            key={conn.id}
             className="absolute z-0"
-            style={{
-              left: 0,
-              top: 0,
-              width: "100%",
-              height: "100%",
-            }}
+            style={{ left: 0, top: 0, width: "100%", height: "100%" }}
           >
             <line
-              x1={elements.find((el) => el.id === conn.from)?.x || 0}
-              y1={elements.find((el) => el.id === conn.from)?.y || 0}
-              x2={elements.find((el) => el.id === conn.to)?.x || 0}
-              y2={elements.find((el) => el.id === conn.to)?.y || 0}
+              x1={
+                elements.find((el) => el.id === newConnection.from)?.x ||
+                startElement?.x ||
+                0
+              }
+              y1={
+                elements.find((el) => el.id === newConnection.from)?.y ||
+                startElement?.y ||
+                0
+              }
+              x2={tempConnection.x}
+              y2={tempConnection.y}
               stroke="#888"
               strokeWidth="2"
-              className="cursor-pointer"
-              onClick={() => deleteConnection(conn.id)}
-            />
-            <FaArrowRight
-              className="text-gray-500 cursor-pointer"
-              style={{
-                position: "absolute",
-                left: (elements.find((el) => el.id === conn.to)?.x || 0) - 16,
-                top: (elements.find((el) => el.id === conn.to)?.y || 0) - 8,
-              }}
-              onClick={() => deleteConnection(conn.id)}
+              strokeDasharray="5,5"
             />
           </svg>
+        )}
+        {elements.map((element) => (
+          <Element
+            key={element.id}
+            data={element}
+            onMove={updateElementPosition}
+            onTextChange={updateElementText}
+            onDelete={deleteElement}
+            GRID_SIZE={GRID_SIZE}
+            containerRef={mapRef}
+            onStartConnection={startNewConnection}
+            onCompleteConnection={() => completeNewConnection(element.id)}
+            isConnecting={isCreatingConnection}
+            isConnectionStart={newConnection.from === element.id}
+          />
         ))}
         {startElement && (
           <Element
-            data={startElement}
+            data={{ ...startElement, isStartElement: true }}
             onMove={handleStartElementMove}
-            onTextChange={() => {}} // Start element text is not editable
-            onDelete={() => {}} // Start element cannot be deleted
+            onTextChange={updateElementText}
+            onDelete={deleteElement}
             GRID_SIZE={GRID_SIZE}
             containerRef={mapRef}
-            onStartConnection={() => startNewConnection(startElement.id)}
+            onStartConnection={startNewConnection}
             onCompleteConnection={() => completeNewConnection(startElement.id)}
-            isConnecting={newConnection.from === startElement.id}
+            isConnecting={isCreatingConnection}
+            isConnectionStart={newConnection.from === startElement.id}
           />
         )}
-        {elements.map((element) => (
-          <React.Fragment key={element.id}>
-            <Element
-              data={element}
-              onMove={updateElementPosition}
-              onTextChange={updateElementText}
-              onDelete={deleteElement}
-              GRID_SIZE={GRID_SIZE}
-              containerRef={mapRef}
-              onStartConnection={() => startNewConnection(element.id)}
-              onCompleteConnection={() => completeNewConnection(element.id)}
-              isConnecting={newConnection.from === element.id}
-            />
-          </React.Fragment>
-        ))}
       </div>
       <button
         onClick={createNewElement}
