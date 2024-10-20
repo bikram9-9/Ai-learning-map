@@ -2,13 +2,8 @@ export type LearningMap = {
   goal_skill: string;
   layers: {
     layer_name: string;
-    skills: LearningNode[];
+    skills: Array<string>;
   }[];
-};
-
-export type LearningNode = {
-  skill: string;
-  description: string;
 };
 
 export type LearningMapRequest = {
@@ -21,6 +16,7 @@ export type ElementData = {
   x: number;
   y: number;
   text: string;
+  layer?: number;
 };
 
 export type LearningMapResponse = LearningMap;

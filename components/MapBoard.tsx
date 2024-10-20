@@ -41,11 +41,10 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
         } as LearningMapRequest
       );
 
-      console.log("API Response:", response);
+      console.log("API Response:", response.data);
 
       if (response.data) {
         setLearningMap(response.data);
-        // Convert learning map data to elements
         const newElements = convertLearningMapToElements(response.data);
         setElements(newElements);
       } else {
@@ -57,29 +56,33 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
         error instanceof Error ? error.message : "An unknown error occurred"
       );
       setLearningMap(null);
+      setElements([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const convertLearningMapToElements = (map: LearningMap): ElementData[] => {
-    // Adjust this function based on your LearningMap structure
-    return map.layers.flatMap((layer) =>
-      layer.skills.map((skill, index) => ({
-        id: skill.skill || `element-${index}`,
+    const totalLayers = map.layers.length;
+    const boardWidth = mapRef.current?.clientWidth || 1000;
+    const boardHeight = mapRef.current?.clientHeight || 800;
+    const layerHeight = boardHeight / totalLayers;
+
+    return map.layers.flatMap((layer, layerIndex) => {
+      const skillsInLayer = layer.skills.length;
+      return layer.skills.map((skill, skillIndex) => ({
+        id: `${layerIndex}-${skillIndex}`,
         x:
           Math.round(
-            (Math.random() * ((mapRef.current?.clientWidth || 500) - 100)) /
-              GRID_SIZE
+            ((boardWidth / (skillsInLayer + 1)) * (skillIndex + 1)) / GRID_SIZE
           ) * GRID_SIZE,
         y:
-          Math.round(
-            (Math.random() * ((mapRef.current?.clientHeight || 500) - 40)) /
-              GRID_SIZE
-          ) * GRID_SIZE,
-        text: skill.skill || `Skill ${index + 1}`,
-      }))
-    );
+          Math.round((layerHeight * (layerIndex + 0.5)) / GRID_SIZE) *
+          GRID_SIZE,
+        text: skill,
+        layer: layerIndex,
+      }));
+    });
   };
 
   useEffect(() => {
@@ -89,7 +92,36 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   }, [learningMap]);
 
   const drawConnections = () => {
-    // ... (keep the existing drawConnections function)
+    if (!mapRef.current || !learningMap) return;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", "100%");
+    svg.style.position = "absolute";
+    svg.style.top = "0";
+    svg.style.left = "0";
+    svg.style.pointerEvents = "none";
+    mapRef.current.appendChild(svg);
+
+    elements.forEach((element) => {
+      const nextLayerElements = elements.filter(
+        (e) => e.layer === (element.layer || 0) + 1
+      );
+
+      nextLayerElements.forEach((nextElement) => {
+        const line = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "line"
+        );
+        line.setAttribute("x1", (element.x + 50).toString());
+        line.setAttribute("y1", (element.y + 20).toString());
+        line.setAttribute("x2", (nextElement.x + 50).toString());
+        line.setAttribute("y2", (nextElement.y + 20).toString());
+        line.setAttribute("stroke", "rgba(156, 163, 175, 0.5)");
+        line.setAttribute("stroke-width", "2");
+        svg.appendChild(line);
+      });
+    });
   };
 
   const createNewElement = () => {
@@ -125,6 +157,12 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   const deleteElement = (id: string) => {
     setElements((prevElements) => prevElements.filter((el) => el.id !== id));
   };
+
+  useEffect(() => {
+    if (elements.length > 0 && mapRef.current) {
+      drawConnections();
+    }
+  }, [elements]);
 
   return (
     <div className="map-board w-full h-[calc(100vh-200px)] mt-10 rounded-lg relative">
