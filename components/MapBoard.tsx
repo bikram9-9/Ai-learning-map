@@ -177,22 +177,46 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     setShowConfirmModal(false);
   };
 
-  const startNewConnection = (fromId: string) => {
+  const startNewConnection = (
+    fromId: string,
+    startX: number,
+    startY: number
+  ) => {
     setNewConnection({ from: fromId, to: null });
     setIsCreatingConnection(true);
-    const fromElement = elements.find((el) => el.id === fromId) || startElement;
-    if (fromElement) {
-      setTempConnection({ x: fromElement.x, y: fromElement.y });
-    }
+    setTempConnection({ x: startX, y: startY });
   };
 
+  const createNewElementFromConnection = useCallback(
+    (position: { x: number; y: number }) => {
+      const newElement: ElementData = {
+        id: `element-${Date.now()}`,
+        x: Math.round(position.x / GRID_SIZE) * GRID_SIZE,
+        y: Math.round(position.y / GRID_SIZE) * GRID_SIZE,
+        text: "New Element",
+        pathIndex: -1,
+        phaseIndex: -1,
+      };
+      setElements((prevElements) => [...prevElements, newElement]);
+      return newElement.id;
+    },
+    [GRID_SIZE]
+  );
+
   const completeNewConnection = useCallback(
-    (toId: string | null): boolean => {
-      if (newConnection.from && newConnection.from !== toId) {
-        if (toId) {
+    (
+      toId: string | null,
+      position: { x: number; y: number } | null
+    ): boolean => {
+      if (newConnection.from) {
+        let targetId = toId;
+        if (!targetId && position) {
+          targetId = createNewElementFromConnection(position);
+        }
+        if (targetId && newConnection.from !== targetId) {
           const newConn = {
             from: newConnection.from,
-            to: toId,
+            to: targetId,
             id: `conn-${Date.now()}`,
           };
           setConnections((prevConnections) => [...prevConnections, newConn]);
@@ -204,7 +228,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
       }
       return false;
     },
-    [newConnection]
+    [newConnection, createNewElementFromConnection]
   );
 
   const findClosestElement = useCallback(
@@ -263,7 +287,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
           tempConnection || { x: 0, y: 0 }
         );
         if (closestElement) {
-          completeNewConnection(closestElement.id);
+          completeNewConnection(closestElement.id, null);
         }
         setIsCreatingConnection(false);
         setTempConnection(null);
@@ -288,9 +312,9 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
           };
           const closestElement = findClosestElement(clickPosition);
           if (closestElement) {
-            completeNewConnection(closestElement.id);
+            completeNewConnection(closestElement.id, null);
           } else {
-            completeNewConnection(null);
+            completeNewConnection(null, clickPosition);
           }
         }
       }
@@ -451,7 +475,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
             GRID_SIZE={GRID_SIZE}
             containerRef={mapRef}
             onStartConnection={startNewConnection}
-            onCompleteConnection={() => completeNewConnection(element.id)}
+            onCompleteConnection={completeNewConnection}
             isConnecting={isCreatingConnection}
             isConnectionStart={newConnection.from === element.id}
           />
@@ -465,7 +489,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
             GRID_SIZE={GRID_SIZE}
             containerRef={mapRef}
             onStartConnection={startNewConnection}
-            onCompleteConnection={() => completeNewConnection(startElement.id)}
+            onCompleteConnection={completeNewConnection}
             isConnecting={isCreatingConnection}
             isConnectionStart={newConnection.from === startElement.id}
           />

@@ -10,23 +10,23 @@ interface ElementProps {
   onDelete: (id: string) => void;
   GRID_SIZE: number;
   containerRef: React.RefObject<HTMLDivElement>;
-  onStartConnection: (id: string) => void;
-  onCompleteConnection: () => boolean;
+  onStartConnection: (id: string, x: number, y: number) => void;
+  onCompleteConnection: (
+    toId: string | null,
+    position: { x: number; y: number } | null
+  ) => boolean;
   isConnecting: boolean;
   isConnectionStart: boolean;
 }
 
-const PlusIcon: React.FC<{ position: string; onClick: () => void }> = ({
-  position,
-  onClick,
-}) => {
+const PlusIcon: React.FC<{
+  position: string;
+  onMouseDown: (e: React.MouseEvent) => void;
+}> = ({ position, onMouseDown }) => {
   return (
     <button
       className={`absolute p-2 rounded-full ${position}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
+      onMouseDown={onMouseDown}
     >
       <FaPlus className="w-3 h-3 text-gray-400" />
     </button>
@@ -126,9 +126,42 @@ const Element: React.FC<ElementProps> = ({
   const handleClick = (e: React.MouseEvent) => {
     if (isConnecting) {
       e.stopPropagation();
-      onCompleteConnection();
+      onCompleteConnection(data.id, null);
     }
   };
+
+  const handleConnectionStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = elementRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      onStartConnection(data.id, x, y);
+    }
+  };
+
+  const handleConnectionEnd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const position = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      onCompleteConnection(null, position);
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseUp = (e: MouseEvent) => {
+      if (isConnectionStart) {
+        handleConnectionEnd(e as unknown as React.MouseEvent);
+      }
+    };
+
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => document.removeEventListener("mouseup", handleMouseUp);
+  }, [isConnectionStart, handleConnectionEnd]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -200,19 +233,19 @@ const Element: React.FC<ElementProps> = ({
         <>
           <PlusIcon
             position="left-0 top-1/2 -translate-x-full -translate-y-1/2"
-            onClick={() => onStartConnection(data.id)}
+            onMouseDown={handleConnectionStart}
           />
           <PlusIcon
             position="right-0 top-1/2 translate-x-full -translate-y-1/2"
-            onClick={() => onStartConnection(data.id)}
+            onMouseDown={handleConnectionStart}
           />
           <PlusIcon
             position="top-0 left-1/2 -translate-x-1/2 -translate-y-full"
-            onClick={() => onStartConnection(data.id)}
+            onMouseDown={handleConnectionStart}
           />
           <PlusIcon
             position="bottom-0 left-1/2 -translate-x-1/2 translate-y-full"
-            onClick={() => onStartConnection(data.id)}
+            onMouseDown={handleConnectionStart}
           />
         </>
       )}
