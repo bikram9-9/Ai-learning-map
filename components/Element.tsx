@@ -1,76 +1,70 @@
-import React, { useState, useEffect, useRef } from "react";
-import { ElementData } from "@/types/general";
-import { FaTimes } from "react-icons/fa";
+import React, { useState, useRef } from "react";
+import { ElementData, Duration } from "@/types/general";
+import { FaPlus } from "react-icons/fa";
 
 interface ElementProps {
-  data: ElementData;
+  data: ElementData & { isStartElement?: boolean };
   onMove: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
+  onDelete: (id: string) => void;
   GRID_SIZE: number;
   containerRef: React.RefObject<HTMLDivElement>;
-  onDelete: (id: string) => void;
+  onStartConnection: () => void;
+  onCompleteConnection: () => void;
+  isConnecting: boolean;
 }
 
 const Element: React.FC<ElementProps> = ({
   data,
   onMove,
   onTextChange,
+  onDelete,
   GRID_SIZE,
   containerRef,
-  onDelete,
+  onStartConnection,
+  onCompleteConnection,
+  isConnecting,
 }) => {
-  const [position, setPosition] = useState({ x: data.x, y: data.y });
-  const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [text, setText] = useState(data.text);
-  const elementRef = useRef<HTMLDivElement>(null);
+  const [editText, setEditText] = useState(data.text);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
-  useEffect(() => {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLeft = data.x;
+    const startTop = data.y;
+
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging && containerRef.current && elementRef.current) {
+      if (containerRef.current) {
         const containerRect = containerRef.current.getBoundingClientRect();
-        const elementRect = elementRef.current.getBoundingClientRect();
-
-        let newX = e.clientX - containerRect.left - elementRect.width / 2;
-        let newY = e.clientY - containerRect.top - elementRect.height / 2;
+        let newX = startLeft + e.clientX - startX;
+        let newY = startTop + e.clientY - startY;
 
         // Boundary checks
-        newX = Math.max(
-          0,
-          Math.min(newX, containerRect.width - elementRect.width)
-        );
+        newX = Math.max(0, Math.min(newX, containerRect.width - GRID_SIZE * 4));
         newY = Math.max(
           0,
-          Math.min(newY, containerRect.height - elementRect.height)
+          Math.min(newY, containerRect.height - GRID_SIZE * 2)
         );
 
         // Snap to grid
         newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
         newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
 
-        setPosition({ x: newX, y: newY });
         onMove(data.id, newX, newY);
       }
     };
 
     const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-    }
-
-    return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, data.id, onMove, GRID_SIZE, containerRef]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -80,53 +74,77 @@ const Element: React.FC<ElementProps> = ({
 
   const handleBlur = () => {
     setIsEditing(false);
-    onTextChange(data.id, text);
+    onTextChange(data.id, editText);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       setIsEditing(false);
-      onTextChange(data.id, text);
+      onTextChange(data.id, editText);
     }
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete(data.id);
+  const formatDuration = (duration: Duration) => {
+    return `${duration.approx_time} weeks`;
   };
 
   return (
     <div
-      ref={elementRef}
-      className="absolute p-2 rounded shadow-md cursor-move bg-white dark:bg-gray-800 text-black dark:text-white group"
+      className={`absolute p-2 rounded shadow-md cursor-move flex flex-col justify-between text-sm font-italic ${
+        data.isStartElement
+          ? "bg-accent text-background dark:text-foreground dark:bg-gray-800"
+          : "bg-foreground text-background dark:text-foreground dark:bg-gray-800"
+      }`}
       style={{
-        left: position.x,
-        top: position.y,
-        minWidth: "100px",
-        minHeight: "40px",
+        left: data.x,
+        top: data.y,
+        width: GRID_SIZE * 4,
+        height: GRID_SIZE * 1.2,
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => {
+        if (isConnecting) {
+          onCompleteConnection();
+        }
+      }}
     >
-      <button
-        onClick={handleDelete}
-        className="absolute top-0 right-0 p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Delete element"
-      >
-        <FaTimes size={12} />
-      </button>
       {isEditing ? (
         <input
+          ref={inputRef}
           type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="w-full bg-transparent outline-none"
+          className="w-full bg-transparent border-none outline-none text-sm"
           autoFocus
         />
       ) : (
-        <div>{text}</div>
+        <>
+          <div className="p-2">{data.text}</div>
+          <div className="flex justify-between items-center text-gray-500">
+            {data.duration && <span>{formatDuration(data.duration)}</span>}
+            {data.skills && <span>Skills: {data.skills.join(", ")}</span>}
+          </div>
+        </>
+      )}
+      <button
+        onClick={() => onDelete(data.id)}
+        className="absolute top-0 right-0 p-1"
+      ></button>
+      {isHovered && !isConnecting && (
+        <button
+          className="absolute -right-4 top-1/2 transform -translate-y-1/2 bg-accent rounded-full p-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartConnection();
+          }}
+        >
+          <FaPlus className="w-3 h-3" />
+        </button>
       )}
     </div>
   );

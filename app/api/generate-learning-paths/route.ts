@@ -28,6 +28,7 @@ export async function POST(req: Request) {
               {
                 "phase": [
                   {
+                    "name": "Concise Phase Name",
                     "duration": {
                       "approx_time": number,
                       "start_time": "YYYY-MM-DD",
@@ -41,14 +42,14 @@ export async function POST(req: Request) {
               ...
             ]
           }
-          Provide exactly ${numberOfPaths} different paths, each with 3-5 phases. Ensure that each phase has a meaningful set of skills and realistic time estimates.`,
+          Provide exactly ${numberOfPaths} different paths, each with 3-5 phases. Ensure that each phase has a concise name, a meaningful set of skills, and realistic time estimates.`,
         },
       ],
       functions: [
         {
           name: "generate_learning_paths",
           description:
-            "Generate different paths to learn a goal skill, organized into phases with skills and time estimates.",
+            "Generate different paths to learn a goal skill, organized into phases with names, skills, and time estimates.",
           parameters: {
             type: "object",
             required: ["goal_skill", "paths"],
@@ -70,8 +71,12 @@ export async function POST(req: Request) {
                       description: "List of phases within the learning path",
                       items: {
                         type: "object",
-                        required: ["duration", "skills"],
+                        required: ["name", "duration", "skills"],
                         properties: {
+                          name: {
+                            type: "string",
+                            description: "Concise name for the phase",
+                          },
                           duration: {
                             type: "object",
                             required: [

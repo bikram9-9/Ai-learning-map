@@ -1,4 +1,5 @@
 export type Phase = {
+  name: string;
   duration: Duration;
   skills: string[];
 };
@@ -9,16 +10,17 @@ export type Duration = {
   mastery_time: string;
 };
 
-export type ElementData = {
+export interface ElementData {
   id: string;
   x: number;
   y: number;
   text: string;
   pathIndex: number;
   phaseIndex: number;
-  phase?: Phase;
   duration?: Duration;
-};
+  skills?: string[];
+  isStartElement?: boolean;
+}
 
 export interface Connection {
   from: string;
