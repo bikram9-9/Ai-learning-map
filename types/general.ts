@@ -1,14 +1,12 @@
-export type LearningMap = {
-  goal_skill: string;
-  layers: {
-    layer_name: string;
-    skills: Array<string>;
-  }[];
+export type Phase = {
+  duration: Duration;
+  skills: string[];
 };
 
-export type LearningMapRequest = {
-  goal_skill: string;
-  layers: number;
+export type Duration = {
+  approx_time: number;
+  start_time: string;
+  mastery_time: string;
 };
 
 export type ElementData = {
@@ -16,12 +14,27 @@ export type ElementData = {
   x: number;
   y: number;
   text: string;
-  layer?: number;
+  pathIndex: number;
+  phaseIndex: number;
+  phase?: Phase;
+  duration?: Duration;
 };
-
-export type LearningMapResponse = LearningMap;
 
 export interface Connection {
   from: string;
   to: string;
 }
+
+export type LearningPath = {
+  phase: Phase[];
+};
+
+export type LearningPathsRequest = {
+  goal_skill: string;
+  numberOfPaths: number;
+};
+
+export type LearningPathsResponse = {
+  goal_skill: string;
+  paths: LearningPath[];
+};
