@@ -22,13 +22,13 @@ const PlusIcon: React.FC<{ position: string; onClick: () => void }> = ({
 }) => {
   return (
     <button
-      className={`absolute bg-accent rounded-full p-1 ${position}`}
+      className={`absolute p-2 rounded-full ${position}`}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
     >
-      <FaPlus className="w-3 h-3" />
+      <FaPlus className="w-3 h-3 text-gray-400" />
     </button>
   );
 };
