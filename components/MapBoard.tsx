@@ -27,18 +27,25 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   const [elements, setElements] = useState<ElementData[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [connections, setConnections] = useState<
-    { from: string; to: string; id: string }[]
+    {
+      from: string;
+      to: string;
+      id: string;
+      side: "left" | "right" | "top" | "bottom";
+    }[]
   >([]);
   const [newConnection, setNewConnection] = useState<{
     from: string;
+    side: "left" | "right" | "top" | "bottom";
     to: string | null;
-  }>({ from: "", to: null });
+  }>({ from: "", side: "right", to: null });
   const [startElement, setStartElement] = useState<ElementData | null>(null);
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
   const [tempConnection, setTempConnection] = useState<{
     x: number;
     y: number;
   } | null>(null);
+  const [newElementId, setNewElementId] = useState<string | null>(null);
 
   useEffect(() => {
     if (generateMap) {
@@ -124,8 +131,9 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   };
 
   const createNewElement = () => {
+    const id = `element-${Date.now()}`;
     const newElement: ElementData = {
-      id: `element-${Date.now()}`,
+      id,
       x:
         Math.round(
           (Math.random() * ((mapRef.current?.clientWidth || 500) - 100)) /
@@ -141,6 +149,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
       phaseIndex: -1,
     };
     setElements((prevElements) => [...prevElements, newElement]);
+    setNewElementId(id);
   };
 
   const updateElementPosition = (id: string, x: number, y: number) => {
@@ -157,6 +166,10 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
 
   const deleteElement = (id: string) => {
     setElements((prevElements) => prevElements.filter((el) => el.id !== id));
+    // Delete all connections associated with this element
+    setConnections((prevConnections) =>
+      prevConnections.filter((conn) => conn.from !== id && conn.to !== id)
+    );
   };
 
   const clearBoard = () => {
@@ -179,10 +192,11 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
 
   const startNewConnection = (
     fromId: string,
+    side: "left" | "right" | "top" | "bottom",
     startX: number,
     startY: number
   ) => {
-    setNewConnection({ from: fromId, to: null });
+    setNewConnection({ from: fromId, side, to: null });
     setIsCreatingConnection(true);
     setTempConnection({ x: startX, y: startY });
   };
@@ -218,10 +232,11 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
             from: newConnection.from,
             to: targetId,
             id: `conn-${Date.now()}`,
+            side: newConnection.side,
           };
           setConnections((prevConnections) => [...prevConnections, newConn]);
         }
-        setNewConnection({ from: "", to: null });
+        setNewConnection({ from: "", side: "right", to: null });
         setIsCreatingConnection(false);
         setTempConnection(null);
         return true;
@@ -323,17 +338,12 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   );
 
   const getConnectionPoints = (
-    element: ElementData
-  ): {
-    left: { x: number; y: number };
-    right: { x: number; y: number };
-    top: { x: number; y: number };
-    bottom: { x: number; y: number };
-    center: { x: number; y: number };
-  } => {
+    element: ElementData,
+    side?: "left" | "right" | "top" | "bottom"
+  ) => {
     const elementWidth = GRID_SIZE * 4;
     const elementHeight = GRID_SIZE * 1.2;
-    return {
+    const points = {
       left: { x: element.x, y: element.y + elementHeight / 2 },
       right: { x: element.x + elementWidth, y: element.y + elementHeight / 2 },
       top: { x: element.x + elementWidth / 2, y: element.y },
@@ -343,31 +353,32 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
         y: element.y + elementHeight / 2,
       },
     };
+    return side ? { [side]: points[side], center: points.center } : points;
   };
 
-  const getClosestConnectionPoint = (from: ElementData, to: ElementData) => {
-    const fromPoints = getConnectionPoints(from);
+  const getClosestConnectionPoint = (
+    from: ElementData,
+    to: ElementData,
+    fromSide: "left" | "right" | "top" | "bottom"
+  ) => {
+    const fromPoints = getConnectionPoints(from, fromSide);
     const toPoints = getConnectionPoints(to);
 
     let minDistance = Infinity;
-    let closestFromPoint = fromPoints.center;
+    let closestFromPoint = fromPoints[fromSide];
     let closestToPoint = toPoints.center;
 
-    Object.entries(fromPoints).forEach(([fromKey, fromPoint]) => {
-      Object.entries(toPoints).forEach(([toKey, toPoint]) => {
-        // Exclude center-to-center connections
-        if (fromKey === "center" && toKey === "center") return;
-
+    Object.entries(toPoints).forEach(([toKey, toPoint]) => {
+      if (toKey !== "center") {
         const distance = Math.sqrt(
-          Math.pow(fromPoint.x - toPoint.x, 2) +
-            Math.pow(fromPoint.y - toPoint.y, 2)
+          Math.pow(fromPoints[fromSide].x - toPoint.x, 2) +
+            Math.pow(fromPoints[fromSide].y - toPoint.y, 2)
         );
         if (distance < minDistance) {
           minDistance = distance;
-          closestFromPoint = fromPoint;
           closestToPoint = toPoint;
         }
-      });
+      }
     });
 
     return { from: closestFromPoint, to: closestToPoint };
@@ -379,8 +390,11 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
   ) => {
     const midX = (start.x + end.x) / 2;
     const midY = (start.y + end.y) / 2;
+    const isDescending = start.y < end.y;
     const controlX = midX;
-    const controlY = midY - Math.min(100, Math.abs(end.y - start.y) / 2);
+    const controlY = isDescending
+      ? midY + Math.min(100, Math.abs(end.y - start.y) / 2)
+      : midY - Math.min(100, Math.abs(end.y - start.y) / 2);
 
     return `M ${start.x} ${start.y} Q ${controlX} ${controlY} ${end.x} ${end.y}`;
   };
@@ -424,7 +438,8 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
 
           const { from, to } = getClosestConnectionPoint(
             fromElement,
-            toElement
+            toElement,
+            conn.side // Add this property to your connections state
           );
           const pathD = createCurvedPath(from, to);
 
@@ -478,13 +493,14 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
             onCompleteConnection={completeNewConnection}
             isConnecting={isCreatingConnection}
             isConnectionStart={newConnection.from === element.id}
+            isNewElement={element.id === newElementId}
           />
         ))}
         {startElement && (
           <Element
             data={{ ...startElement, isStartElement: true }}
             onMove={handleStartElementMove}
-            onTextChange={updateElementText}
+            onTextChange={updateElementText} // Make sure this is passed for the start element too
             onDelete={deleteElement}
             GRID_SIZE={GRID_SIZE}
             containerRef={mapRef}

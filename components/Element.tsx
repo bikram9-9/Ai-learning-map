@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ElementData, Duration } from "@/types/general.types";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaTimes } from "react-icons/fa";
 import Link from "next/link";
+import { formatDuration } from "@/utils/formatDuration";
 
 interface ElementProps {
   data: ElementData & { isStartElement?: boolean };
@@ -10,13 +11,19 @@ interface ElementProps {
   onDelete: (id: string) => void;
   GRID_SIZE: number;
   containerRef: React.RefObject<HTMLDivElement>;
-  onStartConnection: (id: string, x: number, y: number) => void;
+  onStartConnection: (
+    id: string,
+    side: "left" | "right" | "top" | "bottom",
+    x: number,
+    y: number
+  ) => void;
   onCompleteConnection: (
     toId: string | null,
     position: { x: number; y: number } | null
   ) => boolean;
   isConnecting: boolean;
   isConnectionStart: boolean;
+  isNewElement?: boolean;
 }
 
 const PlusIcon: React.FC<{
@@ -37,14 +44,16 @@ const Element: React.FC<ElementProps> = ({
   data,
   onMove,
   onTextChange,
+  onDelete,
   GRID_SIZE,
   containerRef,
   onStartConnection,
   onCompleteConnection,
   isConnecting,
   isConnectionStart,
+  isNewElement,
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(isNewElement);
   const [editText, setEditText] = useState(data.text);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showPlusIcons, setShowPlusIcons] = useState(false);
@@ -53,6 +62,7 @@ const Element: React.FC<ElementProps> = ({
   const [elementWidth, setElementWidth] = useState(GRID_SIZE * 4);
   const [elementHeight, setElementHeight] = useState(GRID_SIZE * 1.2);
   const textRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -91,52 +101,42 @@ const Element: React.FC<ElementProps> = ({
     window.addEventListener("mouseup", handleMouseUp);
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditing(true);
-  };
-
-  const handleBlur = () => {
-    setIsEditing(false);
-    onTextChange(data.id, editText);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      setIsEditing(false);
-      onTextChange(data.id, editText);
-    }
-  };
-
-  const formatDuration = (duration: Duration | undefined): string => {
-    if (!duration) return "Duration unknown";
-    if (duration.approx_time) {
-      return `${duration.approx_time} weeks`;
-    }
-    if (duration.start_time && duration.mastery_time) {
-      const start = parseInt(duration.start_time);
-      const mastery = parseInt(duration.mastery_time);
-      if (!isNaN(start) && !isNaN(mastery)) {
-        return `${mastery - start} weeks`;
-      }
-    }
-    return "Duration format unknown";
-  };
-
   const handleClick = (e: React.MouseEvent) => {
     if (isConnecting) {
       e.stopPropagation();
       onCompleteConnection(data.id, null);
+    } else {
+      setIsEditing(true);
     }
   };
 
-  const handleConnectionStart = (e: React.MouseEvent) => {
+  const handleConnectionStart = (
+    e: React.MouseEvent,
+    side: "left" | "right" | "top" | "bottom"
+  ) => {
     e.stopPropagation();
     const rect = elementRef.current?.getBoundingClientRect();
     if (rect) {
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-      onStartConnection(data.id, x, y);
+      let x, y;
+      switch (side) {
+        case "left":
+          x = rect.left;
+          y = rect.top + rect.height / 2;
+          break;
+        case "right":
+          x = rect.right;
+          y = rect.top + rect.height / 2;
+          break;
+        case "top":
+          x = rect.left + rect.width / 2;
+          y = rect.top;
+          break;
+        case "bottom":
+          x = rect.left + rect.width / 2;
+          y = rect.bottom;
+          break;
+      }
+      onStartConnection(data.id, side, x, y);
     }
   };
 
@@ -191,9 +191,78 @@ const Element: React.FC<ElementProps> = ({
     }
   }, [data.text, GRID_SIZE]);
 
+  useEffect(() => {
+    if (isNewElement && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isNewElement]);
+
   const elementClasses = data.isStartElement
     ? "bg-accent text-background dark:text-foreground dark:bg-gray-800"
     : "bg-foreground text-background dark:text-foreground dark:bg-gray-800";
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (editText !== data.text) {
+      onTextChange(data.id, editText);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleBlur();
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditText(data.text);
+    }
+  };
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsResizing(true);
+  };
+
+  const handleResize = (e: MouseEvent) => {
+    if (!isResizing || !containerRef.current) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newWidth = Math.max(
+      GRID_SIZE * 2,
+      e.clientX - containerRect.left - data.x
+    );
+    const newHeight = Math.max(
+      GRID_SIZE * 0.8,
+      e.clientY - containerRect.top - data.y
+    );
+
+    // Snap to grid
+    const snappedWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
+    const snappedHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
+
+    setElementWidth(snappedWidth);
+    setElementHeight(snappedHeight);
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+  };
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", handleResize);
+      window.addEventListener("mouseup", handleResizeEnd);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleResize);
+      window.removeEventListener("mouseup", handleResizeEnd);
+    };
+  }, [isResizing]);
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(data.id);
+  };
 
   return (
     <div
@@ -208,11 +277,20 @@ const Element: React.FC<ElementProps> = ({
         height: elementHeight,
       }}
       onMouseDown={handleMouseDown}
-      onDoubleClick={handleDoubleClick}
       onClick={handleClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
+      {/* Add delete icon */}
+      {isHovering && !data.isStartElement && (
+        <button
+          className="absolute top-1 right-1 text-gray-400 hover:text-red-500 transition-colors duration-200"
+          onClick={handleDelete}
+        >
+          <FaTimes className="w-3 h-3" />
+        </button>
+      )}
+
       {isEditing ? (
         <input
           ref={inputRef}
@@ -221,11 +299,11 @@ const Element: React.FC<ElementProps> = ({
           onChange={(e) => setEditText(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="w-full bg-transparent border-none outline-none text-sm"
+          className="w-full bg-transparent border-none outline-none text-sm px-2"
           autoFocus
         />
       ) : (
-        <div ref={textRef} className="p-2 overflow-hidden text-ellipsis">
+        <div ref={textRef} className="px-2 overflow-hidden text-ellipsis">
           {data.text}
         </div>
       )}
@@ -233,19 +311,19 @@ const Element: React.FC<ElementProps> = ({
         <>
           <PlusIcon
             position="left-0 top-1/2 -translate-x-full -translate-y-1/2"
-            onMouseDown={handleConnectionStart}
+            onMouseDown={(e) => handleConnectionStart(e, "left")}
           />
           <PlusIcon
             position="right-0 top-1/2 translate-x-full -translate-y-1/2"
-            onMouseDown={handleConnectionStart}
+            onMouseDown={(e) => handleConnectionStart(e, "right")}
           />
           <PlusIcon
             position="top-0 left-1/2 -translate-x-1/2 -translate-y-full"
-            onMouseDown={handleConnectionStart}
+            onMouseDown={(e) => handleConnectionStart(e, "top")}
           />
           <PlusIcon
             position="bottom-0 left-1/2 -translate-x-1/2 translate-y-full"
-            onMouseDown={handleConnectionStart}
+            onMouseDown={(e) => handleConnectionStart(e, "bottom")}
           />
         </>
       )}
@@ -259,12 +337,31 @@ const Element: React.FC<ElementProps> = ({
           {data.skills.map((skill, index) => (
             <Link href={`/skill?name=${encodeURIComponent(skill)}`} key={index}>
               <span className="block underline cursor-pointer hover:text-accent">
-                {skill}: {formatDuration(data.duration)}
+                {skill}: {data.duration ? formatDuration(data.duration) : ""}
               </span>
             </Link>
           ))}
         </div>
       )}
+
+      {/* Add resize handle with new icon */}
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+        onMouseDown={handleResizeStart}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-full h-full text-gray-400"
+        >
+          <path d="M16 20L20 20L20 16" />
+          <path d="M10 20L20 10" />
+        </svg>
+      </div>
     </div>
   );
 };
