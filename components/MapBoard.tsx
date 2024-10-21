@@ -96,9 +96,12 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
       text: skill,
       pathIndex: -1,
       phaseIndex: -1,
-      isStartElement: true, // Add this flag
+      isStartElement: true,
     };
-    setStartElement(newStartElement);
+    setElements((prevElements) => {
+      const filteredElements = prevElements.filter((el) => !el.isStartElement);
+      return [newStartElement, ...filteredElements];
+    });
   };
 
   const convertLearningPathsToElements = (
@@ -496,20 +499,6 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
             isNewElement={element.id === newElementId}
           />
         ))}
-        {startElement && (
-          <Element
-            data={{ ...startElement, isStartElement: true }}
-            onMove={handleStartElementMove}
-            onTextChange={updateElementText} // Make sure this is passed for the start element too
-            onDelete={deleteElement}
-            GRID_SIZE={GRID_SIZE}
-            containerRef={mapRef}
-            onStartConnection={startNewConnection}
-            onCompleteConnection={completeNewConnection}
-            isConnecting={isCreatingConnection}
-            isConnectionStart={newConnection.from === startElement.id}
-          />
-        )}
       </div>
       <button
         onClick={createNewElement}

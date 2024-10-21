@@ -198,10 +198,6 @@ const Element: React.FC<ElementProps> = ({
     }
   }, [isNewElement]);
 
-  const elementClasses = data.isStartElement
-    ? "bg-accent text-background dark:text-foreground dark:bg-gray-800"
-    : "bg-foreground text-background dark:text-foreground dark:bg-gray-800";
-
   const handleBlur = () => {
     setIsEditing(false);
     if (editText !== data.text) {
@@ -261,8 +257,14 @@ const Element: React.FC<ElementProps> = ({
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onDelete(data.id);
+    if (!data.isStartElement) {
+      onDelete(data.id);
+    }
   };
+
+  const elementClasses = data.isStartElement
+    ? "bg-accent text-background dark:text-foreground dark:bg-gray-800"
+    : "bg-foreground text-background dark:text-foreground dark:bg-gray-800";
 
   return (
     <div
@@ -281,7 +283,6 @@ const Element: React.FC<ElementProps> = ({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* Add delete icon */}
       {isHovering && !data.isStartElement && (
         <button
           className="absolute top-1 right-1 text-gray-400 hover:text-red-500 transition-colors duration-200"
@@ -303,7 +304,11 @@ const Element: React.FC<ElementProps> = ({
           autoFocus
         />
       ) : (
-        <div ref={textRef} className="px-2 overflow-hidden text-ellipsis">
+        <div
+          ref={textRef}
+          className="px-2 overflow-hidden text-ellipsis"
+          onClick={() => setIsEditing(true)}
+        >
           {data.text}
         </div>
       )}
