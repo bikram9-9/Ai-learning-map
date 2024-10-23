@@ -39,7 +39,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     side: "left" | "right" | "top" | "bottom";
     to: string | null;
   }>({ from: "", side: "right", to: null });
-  const [startElement, setStartElement] = useState<ElementData | null>(null);
+  const [startElement] = useState<ElementData | null>(null);
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
   const [tempConnection, setTempConnection] = useState<{
     x: number;
@@ -277,12 +277,6 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     setConnections(connections.filter((conn) => conn.id !== id));
   };
 
-  const handleStartElementMove = (id: string, x: number, y: number) => {
-    setStartElement((prev: ElementData | null) =>
-      prev ? { ...prev, x, y } : null
-    );
-  };
-
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (isCreatingConnection) {
@@ -368,7 +362,7 @@ const MapBoard: React.FC<MapBoardProps> = ({ skill, generateMap }) => {
     const toPoints = getConnectionPoints(to);
 
     let minDistance = Infinity;
-    let closestFromPoint = fromPoints[fromSide];
+    const closestFromPoint = fromPoints[fromSide];
     let closestToPoint = toPoints.center;
 
     Object.entries(toPoints).forEach(([toKey, toPoint]) => {
