@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ElementData, Duration } from "@/types/general.types";
+import { ElementData } from "@/types/general.types";
 import { FaPlus, FaTimes } from "react-icons/fa";
 import Link from "next/link";
 import { formatDuration } from "@/utils/formatDuration";
