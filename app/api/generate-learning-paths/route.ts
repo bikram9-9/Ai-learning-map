@@ -11,11 +11,10 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    const { goal_skill, numberOfPaths }: LearningPathsRequest =
-      await req.json();
+    const { goal_skill }: LearningPathsRequest = await req.json();
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -24,103 +23,48 @@ export async function POST(req: Request) {
         },
         {
           role: "user",
-          content: `Generate ${numberOfPaths} learning paths for the goal skill: "${goal_skill}". Return the result as a JSON object with the following structure:
-          {
-            "goal_skill": "${goal_skill}",
-            "paths": [
-              {
-                "phase": [
-                  {
-                    "name": "Concise Phase Name",
-                    "duration": {
-                      "approx_time": number,
-                      "start_time": "YYYY-MM-DD",
-                      "mastery_time": "YYYY-MM-DD"
-                    },
-                    "skills": ["Skill 1", "Skill 2", ...]
-                  },
-                  ...
-                ]
-              },
-              ...
-            ]
-          }
-          Provide exactly ${numberOfPaths} different paths, each with 3-5 phases. Ensure that each phase has a concise name, a meaningful set of skills, and realistic time estimates.`,
+          content: `Generate 1-3 learning paths for the goal skill: "${goal_skill}". Each path should contain 3-5 phases. Ensure that each phase has a concise name and a meaningful set of skills. The skill names should be 1-2 words. A path can be something like using a tutor, self teaching through youtube videos, reading books, etc.`,
         },
       ],
       functions: [
         {
           name: "generate_learning_paths",
           description:
-            "Generate different paths to learn a goal skill, organized into phases with names, skills, and time estimates.",
+            "Generate different common paths of learning a skill, each path includes phases, each phase includes a list of skills.",
           parameters: {
             type: "object",
-            required: ["goal_skill", "paths"],
+            required: ["goal_skill"],
             properties: {
               goal_skill: {
                 type: "string",
-                description: "The skill that the paths are designed to achieve",
+                description: "The skill that the user aims to learn.",
               },
               paths: {
                 type: "array",
                 description:
-                  "Array of different learning paths to achieve the goal skill",
+                  "Array of learning paths, each containing phases of skills to learn.",
                 items: {
                   type: "object",
-                  required: ["phase"],
                   properties: {
-                    phase: {
+                    phase_name: {
+                      type: "string",
+                      description: "Name of the phase in the learning path.",
+                    },
+                    skills: {
                       type: "array",
-                      description: "List of phases within the learning path",
+                      description: "List of skills to acquire in this phase.",
                       items: {
-                        type: "object",
-                        required: ["name", "duration", "skills"],
-                        properties: {
-                          name: {
-                            type: "string",
-                            description: "Concise name for the phase",
-                          },
-                          duration: {
-                            type: "object",
-                            required: [
-                              "approx_time",
-                              "start_time",
-                              "mastery_time",
-                            ],
-                            properties: {
-                              approx_time: {
-                                type: "number",
-                                description:
-                                  "Approximate time to learn the skills in the phase",
-                              },
-                              start_time: {
-                                type: "string",
-                                description:
-                                  "Start time to begin learning the skills in this phase",
-                              },
-                              mastery_time: {
-                                type: "string",
-                                description:
-                                  "Estimated time to master the skills in the phase",
-                              },
-                            },
-                          },
-                          skills: {
-                            type: "array",
-                            description:
-                              "List of skills to be learned in the phase",
-                            items: {
-                              type: "string",
-                              description: "Skill to be learned",
-                            },
-                          },
-                        },
+                        type: "string",
+                        description: "Skill name, 1 to 2 words.",
                       },
                     },
                   },
+                  additionalProperties: false,
+                  required: ["phase_name", "skills"],
                 },
               },
             },
+            additionalProperties: false,
           },
         },
       ],

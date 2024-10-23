@@ -1,9 +1,3 @@
-export type Phase = {
-  name: string;
-  duration: Duration;
-  skills: string[];
-};
-
 export type Duration = {
   approx_time: string;
   start_time: string;
@@ -28,12 +22,12 @@ export interface Connection {
 }
 
 export type LearningPath = {
-  phase: Phase[];
+  phase_name: string;
+  skills: string[];
 };
 
 export type LearningPathsRequest = {
   goal_skill: string;
-  numberOfPaths: number;
 };
 
 export type LearningPathsResponse = {
